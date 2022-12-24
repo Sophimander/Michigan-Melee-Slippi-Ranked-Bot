@@ -19,6 +19,14 @@ class InfoCog(commands.Cog, name='Info'):
                               colour=discord.Colour.dark_purple())
         await ctx.send(embed=embed)
 
+    @commands.command(name='git', help='Gives link to git repository')
+    async def __showGit(self, ctx: commands.Context):
+        embed = discord.Embed(title='Github',
+                              url=f'https://github.com/ConstObject/Michigan-Melee-Slippi-Ranked-Bot',
+                              description='Link to project repository.',
+                              colour=discord.Colour.green())
+        await ctx.send(embed=embed)
+
     @commands.command(name='creator', help='Gives info about creator')
     async def __showCreator(self, ctx: commands.Context):
         await ctx.send("```"
