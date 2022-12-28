@@ -26,7 +26,7 @@ extensions_list = ['user', 'info']
 
 slippi_url_prefix = "https://slippi.gg/user/"
 
-bot = commands.Bot(command_prefix='$', intents=discord.Intents.all())
+bot = commands.Bot(command_prefix='&', intents=discord.Intents.all())
 
 
 @bot.event
@@ -48,9 +48,4 @@ async def on_ready():
                               activity=discord.Activity(
                                   type=discord.ActivityType.playing,
                                   name="Slippi"))
-    print(
-        'Logged in as:\n{0.user.name}\n{0.user.id}'
-            .format(bot))
-
-
-bot.run("TOKEN")
+    print('Logged in as:\n{0.user.name}\n{0.user.id}'.format(bot))

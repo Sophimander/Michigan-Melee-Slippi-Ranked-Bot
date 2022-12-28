@@ -160,3 +160,4 @@ cython_debug/
 .idea/
 /database_old.db
 /database.db
+/ranked.ini

@@ -6,6 +6,8 @@ import os
 import selenium.common.exceptions
 import re
 
+username = None
+password = None
 
 slippi_url_prefix = "https://slippi.gg/user/"
 
@@ -18,16 +20,17 @@ driver = webdriver.Chrome(options=chrome_options)
 
 
 def login():
-    driver.get('https://slippi.gg')
-    element = driver.find_element(by=By.XPATH, value='//*[@id="root"]/div/header/div/header/div/div[3]/button')
-    element.click()
-    element = driver.find_element(by=By.XPATH, value='//*[@id="menu-appbar"]/div[3]/ul/li')
-    element.click()
-    element = driver.find_element(by=By.XPATH, value='//*[@id="email"]')
-    element.send_keys("UserName")
-    element = driver.find_element(by=By.XPATH, value='//*[@id="password"]')
-    element.send_keys("Password")
-    element.submit()
+    if username and password:
+        driver.get('https://slippi.gg')
+        element = driver.find_element(by=By.XPATH, value='//*[@id="root"]/div/header/div/header/div/div[3]/button')
+        element.click()
+        element = driver.find_element(by=By.XPATH, value='//*[@id="menu-appbar"]/div[3]/ul/li')
+        element.click()
+        element = driver.find_element(by=By.XPATH, value='//*[@id="email"]')
+        element.send_keys(username)
+        element = driver.find_element(by=By.XPATH, value='//*[@id="password"]')
+        element.send_keys(password)
+        element.submit()
 
 
 def elo_sort(elem):
@@ -104,7 +107,8 @@ def get_player_ranked_data(user):
     driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
     driver.implicitly_wait(.5)
     try:
-        rank_text = driver.find_element(by=By.XPATH, value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text
+        rank_text = driver.find_element(by=By.XPATH,
+                                        value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text
     except selenium.common.WebDriverException as e:
         print(e)
         return False
