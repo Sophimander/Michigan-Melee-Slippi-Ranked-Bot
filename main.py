@@ -24,10 +24,10 @@ config.read(config_path)
 
 def first_run():
     logger.debug('First_run')
-    slippi_username = input('Please input slippi.gg username')
-    slippi_password = input('Please input slippi.gg password')
-    discord_token = input('Please input discord bot token')
-    database_path = input('Please input the full database path')
+    slippi_username = input('Please input slippi.gg username ')
+    slippi_password = input('Please input slippi.gg password ')
+    discord_token = input('Please input discord bot token ')
+    database_path = input('Please input the full database path ')
     config['DEFAULT']['Username'] = slippi_username
     config['DEFAULT']['Password'] = slippi_password
     config['DEFAULT']['Token'] = discord_token
