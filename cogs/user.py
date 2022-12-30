@@ -67,15 +67,23 @@ class UserCog(commands.Cog, name='Users'):
                        f"{player_stats[2]} | "
                        f"({player_stats[3]}/{player_stats[4]})")
 
+    # ctx, "Tim" "below#0"
     @commands.command(name='reg', help='Registers a user for the bot')
     async def __regUser(self, ctx: commands.Context, name, user_connect_code):
-        conn = do.create_con("database.db")
-        user_connect_code = user_connect_code.lower()
+        conn = do.create_con(do.db_path)
+        user_connect_code = user_connect_code.lower()  # below#0
         results = sd.create_user_entry(conn, ctx.author.id, name, user_connect_code)
 
         # Check if user or connect code exists, then get the uid of the connect code
         if results == sd.ExitCode.USER_ALREADY_EXISTS or results == sd.ExitCode.CONNECT_CODE_ALREADY_EXISTS:
             connect_code_uid = do.get_user_by_connect_code(conn, user_connect_code)
+
+            # Check if user for connect_code exists
+            if not connect_code_uid:
+                do.update_user_connect_code(conn, ctx.author.id, user_connect_code)
+                await ctx.send('Updated player info.')
+                conn.close()
+                return
 
             # Check that connect_code uid matches author id
             if connect_code_uid[0] and connect_code_uid[0] == ctx.author.id:
