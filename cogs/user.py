@@ -1,3 +1,5 @@
+import datetime
+
 import discord
 from discord.ext import commands
 from typing import Union
@@ -5,6 +7,7 @@ from typing import Union
 import math
 import asyncio
 import pytz
+from zoneinfo import ZoneInfo
 
 import slippi.slippi_ranked as sr
 import slippi.slippi_data as sd
@@ -115,8 +118,9 @@ class UserCog(commands.Cog, name='Users'):
 
         string_date = 'Failed to get date.'
         if latest_date:
-            string_date = latest_date.strftime("%Y-%m-%d %H:%M:%S")
-            string_date += ' <- This is in GMT'
+            string_date = latest_date.astimezone(tz=ZoneInfo('America/Detroit')).strftime('%Y-%m-%d %H:%M:%S')
+
+            # string_date += ' <- This is in GMT'
 
         # Instantiate text and match_list to be appended later
         text = ''
