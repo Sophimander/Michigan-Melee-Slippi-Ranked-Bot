@@ -65,14 +65,14 @@ def does_user_exist(connect_code):
 
 def get_player_ranked_data_fast(connect_code):
 
-    driver.implicitly_wait(.5)
+    driver.implicitly_wait(1)
     # Check if valid connect_code
     if not is_valid_connect_code(connect_code):
         return False
 
     # Get slipppi profile page, replace hashtag with - to go to correct link
     driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
-    driver.implicitly_wait(.5)
+    driver.implicitly_wait(3)
     try:
         rank_text = driver.find_element(by=By.XPATH, value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text
     except selenium.common.WebDriverException as e:
@@ -98,14 +98,14 @@ def get_player_ranked_data(user):
     name = user[1]
     connect_code = user[2]
 
-    driver.implicitly_wait(.5)
+    driver.implicitly_wait(1)
     # Check if valid connect_code
     if not is_valid_connect_code(connect_code):
         return False
 
     # Get slipppi profile page, replace hashtag with - to go to correct link
     driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
-    driver.implicitly_wait(.5)
+    driver.implicitly_wait(3)
     try:
         rank_text = driver.find_element(by=By.XPATH,
                                         value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text

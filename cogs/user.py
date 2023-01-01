@@ -4,6 +4,7 @@ from typing import Union
 
 import math
 import asyncio
+import pytz
 
 import slippi.slippi_ranked as sr
 import slippi.slippi_data as sd
@@ -108,9 +109,14 @@ class UserCog(commands.Cog, name='Users'):
 
     @commands.command(name='leaderboard', help='Prints a pagified leaderboard')
     async def __getLeaderboard(self, ctx):
-        conn = do.create_con("database.db")
-        leaderboard = sd.generate_leaderboard_text(conn)
-        conn.close()
+        with do.create_con(do.db_path) as conn:
+            leaderboard = sd.generate_leaderboard_text(conn)
+            latest_date = do.get_latest_date(conn)
+
+        string_date = 'Failed to get date.'
+        if latest_date:
+            string_date = latest_date.strftime("%Y-%m-%d %H:%M:%S")
+
         # Instantiate text and match_list to be appended later
         text = ''
 
@@ -128,7 +134,7 @@ class UserCog(commands.Cog, name='Users'):
 
         # If pages is greater than one, add a page counter, if not set active to False
         if pages > 1:
-            text += f'Page {cur_page + 1} of {pages}\n'
+            text += f'Page {cur_page + 1} of {pages}\t{string_date}\n'
         else:
             active = False
 
@@ -161,7 +167,7 @@ class UserCog(commands.Cog, name='Users'):
                         page += leaderboard[i]  # match_list[i]
 
                     # Add page counter and edit message with page
-                    page += f'Page {cur_page + 1} of {pages}\n```'
+                    page += f'Page {cur_page + 1} of {pages}\t{string_date}\n```'
                     await message.edit(content=page)
 
                     # Remove users reaction
@@ -178,7 +184,7 @@ class UserCog(commands.Cog, name='Users'):
                             page += leaderboard[i]  # match_list[i]
 
                     # Add page counter and edit message with page
-                    page += f'Page {cur_page + 1} of {pages}\n```'
+                    page += f'Page {cur_page + 1} of {pages}\t{string_date}\n```'
                     await message.edit(content=page)
 
                     # Remove users reaction
