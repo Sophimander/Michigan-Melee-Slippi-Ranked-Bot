@@ -116,6 +116,7 @@ class UserCog(commands.Cog, name='Users'):
         string_date = 'Failed to get date.'
         if latest_date:
             string_date = latest_date.strftime("%Y-%m-%d %H:%M:%S")
+            string_date += ' <- This is in GMT'
 
         # Instantiate text and match_list to be appended later
         text = ''
