@@ -6,6 +6,10 @@ import database.database_operations as do
 
 from enum import Enum
 
+import logging
+
+logger = logging.getLogger(f'slippi_bot.{__name__}')
+
 
 class ExitCode(Enum):
     INVALID_CONNECT_CODE = 1
@@ -20,14 +24,17 @@ class ExitCode(Enum):
 
 
 def get_all_users_ranked_data(conn: sqlite3.Connection):
+    logger.debug(f'get_all_users_ranked_data')
     ranked_data = []
     users = do.get_all_users(conn)
 
     if not users:
+        logger.error(f'Unable to get players')
         return ExitCode.FAILED_TO_GET_ALL_PLAYERS
 
     for individual in users:
         user_stats = sr.get_player_ranked_data(individual)
+        logger.debug(f'{individual}: {user_stats}')
         if user_stats is not False:
             ranked_data.append(user_stats)
 
@@ -35,27 +42,34 @@ def get_all_users_ranked_data(conn: sqlite3.Connection):
 
 
 def generate_leaderboard_text(conn: sqlite3.Connection):
+    logger.debug('generate_leaderboard_text')
     latest_date = do.get_latest_date(conn)
+    logger.debug(f'latest_date: {latest_date}')
     if not latest_date:
         return ExitCode.FAILED_TO_GET_DATE
 
     leaderboard_data = do.get_leaderboard_by_date(conn, latest_date)
+    logger.debug(f'leaderboard_data: {leaderboard_data}')
     if not leaderboard_data:
         return ExitCode.FAILED_TO_GET_LEADERBOARD
 
     leaderboard_text = []
     for entry in leaderboard_data:
+        logger.debug(f'entry: {entry}')
         leaderboard_text.append(f"{entry[2]}. {entry[0]} | {entry[3]} ({entry[4]}/{entry[5]}) {entry[6]}\n")
 
     return leaderboard_text
 
 
 def write_snapshot(conn: sqlite3.Connection):
+    logger.debug(f'write_snapshot')
     date = datetime.datetime.utcnow()
+    logger.debug(f'date: {date}')
     if not do.create_date(conn, date):
         return ExitCode.FAILED_TO_CREATE_DATE
 
     ranked_data = get_all_users_ranked_data(conn)
+    logger.debug(f'ranked_data: {ranked_data}')
     if ranked_data == ExitCode.FAILED_TO_GET_ALL_PLAYERS:
         return ExitCode.FAILED_TO_GET_ALL_PLAYERS
 
@@ -89,6 +103,7 @@ def write_win_loss_data(conn: sqlite3.Connection, ranked_data, date: datetime.da
 
 
 def create_user_entry(conn: sqlite3.Connection, uid: int, name: str, connect_code: str) -> ExitCode:
+    logger.debug(f'create_user_entry: {uid}, {name}, {connect_code}')
     if not sr.is_valid_connect_code(connect_code.lower()):
         return ExitCode.INVALID_CONNECT_CODE
 
@@ -99,6 +114,7 @@ def create_user_entry(conn: sqlite3.Connection, uid: int, name: str, connect_cod
         return ExitCode.USER_ALREADY_EXISTS
 
     results = do.create_user(conn, name, connect_code.lower(), uid)
+    logger.debug(f'results: {results}')
     if results:
         return ExitCode.USER_CREATED_SUCCESSFULLY
 

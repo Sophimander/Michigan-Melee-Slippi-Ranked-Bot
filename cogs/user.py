@@ -6,12 +6,15 @@ from typing import Union
 
 import math
 import asyncio
-import pytz
 from zoneinfo import ZoneInfo
 
 import slippi.slippi_ranked as sr
 import slippi.slippi_data as sd
 import database.database_operations as do
+
+import logging
+
+logger = logging.getLogger(f'slippi_bot.{__name__}')
 
 
 def has_database_permission():
@@ -32,98 +35,102 @@ class UserCog(commands.Cog, name='Users'):
 
     async def cog_command_error(self, ctx: commands.Context,
                                 error: commands.CommandError):
+        logger.error(f'{error}')
         await ctx.send('An error occurred: {}'.format(str(error)))
 
     @commands.command(name='refresh', help='Creates a ranked stats snapshot (Soph only)')
     @has_database_permission()
     async def __refreshDatabase(self, ctx: commands.Context):
-        conn = do.create_con("database.db")
-        results = sd.write_snapshot(conn)
-        conn.close()
+        with do.create_con(do.db_path) as conn:
+            results = sd.write_snapshot(conn)
+            logger.debug(f'database_refresh: {results}')
         return results
 
     @commands.command(name='stats', help='Prints a users slippi ranked stats in chat')
     async def __getStats(self, ctx: commands.Context, user_connect_code: Union[discord.Member, str] = None):
+        logger.debug(f'getStats: {ctx.author.name}: {user_connect_code}')
 
         if type(user_connect_code) == str:
             user_connect_code = user_connect_code.lower()
+        with do.create_con(do.db_path) as conn:
 
-        conn = do.create_con(do.db_path)
+            if not user_connect_code or type(user_connect_code) == discord.Member:
+                user = do.get_user_by_uid(conn, ctx.author.id if not user_connect_code else user_connect_code.id)
+                if not user:
+                    logger.debug(f'User not found: {ctx.author.id} | {user_connect_code}')
+                    await ctx.send("Not registered please use the \"$reg\" command to register.")
+                    return
+                user_connect_code = user[2]
 
-        if not user_connect_code or type(user_connect_code) == discord.Member:
-            user = do.get_user_by_uid(conn, ctx.author.id if not user_connect_code else user_connect_code.id)
-            if not user:
-                await ctx.send("Not registered please use the \"$reg\" command to register.")
+            if not sr.is_valid_connect_code(user_connect_code):
+                logger.debug(f'Invalid connect code: {user_connect_code}')
+                await ctx.send('Invalid connect code.')
                 return
-            user_connect_code = user[2]
 
-        if not sr.is_valid_connect_code(user_connect_code):
-            await ctx.send('Invalid connect code.')
-            return
+            player_stats = sr.get_player_ranked_data_fast(user_connect_code)
+            logger.debug(f'player_stats: {player_stats}')
 
-        player_stats = sr.get_player_ranked_data_fast(user_connect_code)
+            if not player_stats:
+                await ctx.send('Unable to find user.')
+                return
 
-        if not player_stats:
-            await ctx.send('Unable to find user.')
-            return
+            await ctx.send(f"{player_stats[0]}: {player_stats[1]} | "
+                           f"{player_stats[2]} | "
+                           f"({player_stats[3]}/{player_stats[4]})")
 
-        await ctx.send(f"{player_stats[0]}: {player_stats[1]} | "
-                       f"{player_stats[2]} | "
-                       f"({player_stats[3]}/{player_stats[4]})")
-
-    # ctx, "Tim" "below#0"
     @commands.command(name='reg', help='Registers a user for the bot')
     async def __regUser(self, ctx: commands.Context, name, user_connect_code):
-        conn = do.create_con(do.db_path)
-        user_connect_code = user_connect_code.lower()  # below#0
-        results = sd.create_user_entry(conn, ctx.author.id, name, user_connect_code)
 
-        # Check if user or connect code exists, then get the uid of the connect code
-        if results == sd.ExitCode.USER_ALREADY_EXISTS or results == sd.ExitCode.CONNECT_CODE_ALREADY_EXISTS:
-            connect_code_uid = do.get_user_by_connect_code(conn, user_connect_code)
+        logger.debug(f'regUser: {ctx.author.name}, {name}, {user_connect_code}')
+        with do.create_con(do.db_path) as conn:
 
-            # Check if user for connect_code exists
-            if not connect_code_uid:
-                do.update_user_connect_code(conn, ctx.author.id, user_connect_code)
-                await ctx.send('Updated player info.')
-                conn.close()
-                return
+            user_connect_code = user_connect_code.lower()
+            results = sd.create_user_entry(conn, ctx.author.id, name, user_connect_code)
+            logger.debug(f'results: {results}')
 
-            # Check that connect_code uid matches author id
-            if connect_code_uid[0] and connect_code_uid[0] == ctx.author.id:
-                if not do.update_user_connect_code(conn, ctx.author.id, user_connect_code):
+            # Check if user or connect code exists, then get the uid of the connect code
+            if results == sd.ExitCode.USER_ALREADY_EXISTS or results == sd.ExitCode.CONNECT_CODE_ALREADY_EXISTS:
+                connect_code_uid = do.get_user_by_connect_code(conn, user_connect_code)
+
+                # Check if user for connect_code exists
+                if not connect_code_uid:
+                    do.update_user_connect_code(conn, ctx.author.id, user_connect_code)
+                    await ctx.send('Updated player info.')
                     conn.close()
-                    await ctx.send('Error updating connect code')
                     return
-                if not do.update_user_name(conn, ctx.author.id, name):
-                    conn.close()
-                    await ctx.send('Error updating name')
-                    return
-                conn.close()
-                await ctx.send('Updated player info')
-                return
-            else:
-                await ctx.send('Someone else already has that connect code')
-                conn.close()
-                return
 
-        await ctx.send(results)
-        conn.close()
+                # Check that connect_code uid matches author id
+                if connect_code_uid[0] and connect_code_uid[0] == ctx.author.id:
+                    if not do.update_user_connect_code(conn, ctx.author.id, user_connect_code):
+                        await ctx.send('Error updating connect code')
+                        return
+                    if not do.update_user_name(conn, ctx.author.id, name):
+                        await ctx.send('Error updating name')
+                        return
+                    await ctx.send('Updated player info')
+                    return
+                else:
+                    await ctx.send('Someone else already has that connect code')
+                    return
+
+            await ctx.send('Unable to update info')
 
     @commands.command(name='leaderboard', help='Prints a pagified leaderboard')
-    async def __getLeaderboard(self, ctx):
+    async def __getLeaderboard(self, ctx: commands.Context):
+        logger.debug(f'getLeaderboard: {ctx.author.name}')
         with do.create_con(do.db_path) as conn:
             leaderboard = sd.generate_leaderboard_text(conn)
             latest_date = do.get_latest_date(conn)
 
+        if isinstance(leaderboard, sd.ExitCode) or not latest_date:
+            await ctx.send('Error getting leaderboard data, please try again later')
+            return
+
+        logger.debug(f'{latest_date} | {leaderboard}')
+
         string_date = 'Failed to get date.'
         if latest_date:
             string_date = latest_date.astimezone(tz=ZoneInfo('America/Detroit')).strftime('%Y-%m-%d %H:%M:%S')
-
-            # string_date += ' <- This is in GMT'
-
-        # Instantiate text and match_list to be appended later
-        text = ''
 
         # Set pages to amount of match_list/10 in an even amount, cur_page to last page, and active to true
         text = ''

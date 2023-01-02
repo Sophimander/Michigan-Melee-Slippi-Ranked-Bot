@@ -7,7 +7,7 @@ import sys
 import configparser
 from os.path import exists
 
-logger = logging.getLogger('marble_match')
+logger = logging.getLogger('slippi_bot')
 logger.setLevel(logging.DEBUG)
 file_handler = logging.FileHandler('log.log')
 stream_handler = logging.StreamHandler(sys.stdout)

@@ -6,6 +6,10 @@ import os
 import selenium.common.exceptions
 import re
 
+import logging
+
+logger = logging.getLogger(f'slippi_bot.{__name__}')
+
 username = None
 password = None
 
@@ -52,55 +56,31 @@ def format_elo_rating(elo_rating_string):
 
 
 def does_user_exist(connect_code):
+    logger.debug(f'does_user_exit: {connect_code}')
     driver.implicitly_wait(.5)
 
     driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
-    driver.implicitly_wait(.5)
+    driver.implicitly_wait(2)
 
     player_not_found = driver.find_element(by=By.XPATH, value="/html/body/div[1]/div/div/div/div/div/div/div/p")
     if player_not_found.text == "Player not found":
+        logger.debug('Player not found')
         return False
+    logger.debug('Player found')
     return True
 
 
 def get_player_ranked_data_fast(connect_code):
+    logger.debug(f'get_player_ranked_data_fast: {connect_code}')
 
     driver.implicitly_wait(1)
     # Check if valid connect_code
     if not is_valid_connect_code(connect_code):
+        logger.debug('Invalid connect code')
         return False
 
-    # Get slipppi profile page, replace hashtag with - to go to correct link
-    driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
-    driver.implicitly_wait(3)
-    try:
-        rank_text = driver.find_element(by=By.XPATH, value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text
-    except selenium.common.WebDriverException as e:
-        print(e)
-        return False
-    if rank_text == "NONE":
-        return [connect_code, "NONE", 0.0, 0, 0]
-    elo_rating = driver.find_element(by=By.XPATH,
-                                     value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[4]").text
-    wins = int(driver.find_element(by=By.XPATH,
-                               value="/html/body/div[1]/div/div/div/div/div[2]/div/div[2]/div[2]/div/p[1]").text)
-    loses = int(driver.find_element(by=By.XPATH,
-                                value="/html/body/div[1]/div/div/div/div/div[2]/div/div[2]/div[2]/div/p[3]").text)
-
-    print(f"{connect_code}: {rank_text} | {elo_rating} | {wins}/{loses}")
-
-    return [connect_code, rank_text, 0.0 if wins+loses < 5 else format_elo_rating(elo_rating), wins, loses]
-
-
-def get_player_ranked_data(user):
-
-    uid = user[0]
-    name = user[1]
-    connect_code = user[2]
-
-    driver.implicitly_wait(1)
-    # Check if valid connect_code
-    if not is_valid_connect_code(connect_code):
+    if not does_user_exist(connect_code):
+        logger.debug('Player not found')
         return False
 
     # Get slipppi profile page, replace hashtag with - to go to correct link
@@ -110,8 +90,54 @@ def get_player_ranked_data(user):
         rank_text = driver.find_element(by=By.XPATH,
                                         value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text
     except selenium.common.WebDriverException as e:
-        print(e)
+        logger.error(e.msg)
         return False
+
+    # If rank is none, return empty stats
+    if rank_text == "NONE":
+        return [connect_code, "NONE", 0.0, 0, 0]
+
+    elo_rating = driver.find_element(by=By.XPATH,
+                                     value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[4]").text
+    wins = int(driver.find_element(by=By.XPATH,
+                               value="/html/body/div[1]/div/div/div/div/div[2]/div/div[2]/div[2]/div/p[1]").text)
+    loses = int(driver.find_element(by=By.XPATH,
+                                value="/html/body/div[1]/div/div/div/div/div[2]/div/div[2]/div[2]/div/p[3]").text)
+
+    logger.debug(f'{connect_code}: {rank_text} | {elo_rating} | {wins}/{loses}')
+
+    return [connect_code, rank_text, 0.0 if wins+loses < 5 else format_elo_rating(elo_rating), wins, loses]
+
+
+def get_player_ranked_data(user):
+
+    logger.debug(f'get_player_ranked_data: {user}')
+
+    uid = user[0]
+    name = user[1]
+    connect_code = user[2]
+
+    driver.implicitly_wait(1)
+    # Check if valid connect_code
+    if not is_valid_connect_code(connect_code):
+        logger.debug(f'Invalid connect code: {connect_code}')
+        return False
+
+    # Check for player
+    if not does_user_exist(connect_code):
+        logger.debug('User does not exist')
+        return False
+
+    # Get slipppi profile page, replace hashtag with - to go to correct link
+    driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
+    driver.implicitly_wait(3)
+    try:
+        rank_text = driver.find_element(by=By.XPATH,
+                                        value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text
+    except selenium.common.WebDriverException as e:
+        logger.error(e.msg)
+        return False
+
     if rank_text == "NONE":
         return [uid, name, connect_code, "NONE", 0.0, 0, 0]
     elo_rating = driver.find_element(by=By.XPATH,
@@ -121,7 +147,7 @@ def get_player_ranked_data(user):
     loses = int(driver.find_element(by=By.XPATH,
                                 value="/html/body/div[1]/div/div/div/div/div[2]/div/div[2]/div[2]/div/p[3]").text)
 
-    print(f"{connect_code}: {rank_text} | {elo_rating} | {wins}/{loses}")
+    logger.debug(f'{connect_code}: {rank_text} | {elo_rating} | {wins}/{loses}')
 
     return [uid, name, connect_code, rank_text, 0.0 if wins+loses < 5 else format_elo_rating(elo_rating), wins, loses]
 

@@ -161,3 +161,4 @@ cython_debug/
 /database_old.db
 /database.db
 /ranked.ini
+/log.log
