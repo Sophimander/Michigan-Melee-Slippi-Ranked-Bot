@@ -60,7 +60,7 @@ def does_user_exist(connect_code):
     driver.implicitly_wait(.5)
 
     driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
-    driver.implicitly_wait(2)
+    driver.implicitly_wait(5)
 
     player_not_found = driver.find_element(by=By.XPATH, value="/html/body/div[1]/div/div/div/div/div/div/div/p")
     if player_not_found.text == "Player not found":
@@ -85,7 +85,7 @@ def get_player_ranked_data_fast(connect_code):
 
     # Get slipppi profile page, replace hashtag with - to go to correct link
     driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
-    driver.implicitly_wait(3)
+    driver.implicitly_wait(5)
     try:
         rank_text = driver.find_element(by=By.XPATH,
                                         value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text
@@ -130,7 +130,7 @@ def get_player_ranked_data(user):
 
     # Get slipppi profile page, replace hashtag with - to go to correct link
     driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
-    driver.implicitly_wait(3)
+    driver.implicitly_wait(5)
     try:
         rank_text = driver.find_element(by=By.XPATH,
                                         value="/html/body/div[1]/div/div/div/div/div[1]/div/div[1]/p[3]").text
