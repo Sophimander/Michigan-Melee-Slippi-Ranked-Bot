@@ -62,12 +62,16 @@ def does_user_exist(connect_code):
     driver.get(f"{slippi_url_prefix}{connect_code_to_html(connect_code)}")
     driver.implicitly_wait(5)
 
-    player_not_found = driver.find_element(by=By.XPATH, value="/html/body/div[1]/div/div/div/div/div/div/div/p")
-    if player_not_found.text == "Player not found":
-        logger.debug('Player not found')
-        return False
-    logger.debug('Player found')
-    return True
+    try:
+        player_not_found = driver.find_element(by=By.XPATH, value="/html/body/div[1]/div/div/div/div/div/div/div/p")
+        if player_not_found.text == "Player not found":
+            logger.debug('Player not found')
+            return False
+        logger.debug('Player found')
+        return True
+    except Exception as e:
+        logger.debug(f'{e}')
+        return True
 
 
 def get_player_ranked_data_fast(connect_code):
