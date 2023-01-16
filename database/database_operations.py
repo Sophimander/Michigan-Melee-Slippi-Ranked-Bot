@@ -224,6 +224,31 @@ def get_leaderboard_by_date(connection: sqlite3.Connection, date: datetime.datet
         return 0
 
 
+def get_user_stats_by_date(connection: sqlite3.Connection, uid: int, date: datetime.datetime):
+    logger.debug(f'get_user_stats_by_date: {uid}, {date}')
+    query = 'SELECT users.uid, users.name, users.connect_code, leaderboard.position, elo.elo, win_loss.wins, win_loss.losses, rank.rank, leaderboard.date ' \
+            'FROM users ' \
+            'INNER JOIN leaderboard ON users.uid = leaderboard.uid ' \
+            'INNER JOIN elo ON users.uid = elo.uid AND leaderboard.date = elo.date ' \
+            'INNER JOIN rank ON users.uid = rank.uid AND leaderboard.date = rank.date ' \
+            'INNER JOIN win_loss ON users.uid = win_loss.uid AND leaderboard.date = win_loss.date ' \
+            'WHERE leaderboard.date=? AND users.uid=?'
+    query_param = [date, uid]
+
+    try:
+        cur = connection.cursor()
+        cur.execute(query, query_param)
+        results = cur.fetchone()
+
+        logger.debug(f'results: {results}')
+        if results is not None:
+            return results
+        return 0
+    except Error as e:
+        logger.error(e)
+        return 0
+
+
 def get_user_by_uid(connection: sqlite3.Connection, uid: int):
     logger.debug(f'get_user_by_uid: {uid}')
     query = "SELECT * FROM users WHERE uid=?"

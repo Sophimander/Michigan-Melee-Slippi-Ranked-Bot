@@ -28,6 +28,45 @@ def has_database_permission():
     return commands.check(predicate)
 
 
+class LeaderboardView(discord.ui.View):
+
+    def __init__(self, embed: discord.Embed, leaderboard: list[str], date:str, pages: int, cur_page: int):
+        super().__init__()
+        self.embed = embed
+        self.leaderboard = leaderboard
+        self.date = date
+        self.pages = pages
+        self.cur_page = cur_page
+
+    @discord.ui.button(emoji='⬅️', style=discord.ButtonStyle.green)
+    async def button_callback_left(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.cur_page:
+            self.cur_page -= 1
+        else:
+            self.cur_page = self.pages - 1
+
+        page_start = self.cur_page * 10
+        page_end = page_start + 10
+        embed_text = ''.join([x for x in self.leaderboard[page_start:page_end]])
+
+        self.embed.description = f'```{embed_text}```'
+        await interaction.response.edit_message(embed=self.embed)
+
+    @discord.ui.button(emoji='➡️', style=discord.ButtonStyle.green)
+    async def button_callback_right(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.cur_page < self.pages - 1:
+            self.cur_page += 1
+        else:
+            self.cur_page = 0
+
+        page_start = self.cur_page * 10
+        page_end = page_start + 10
+        embed_text = ''.join([x for x in self.leaderboard[page_start:page_end]])
+
+        self.embed.description = f'```{embed_text}```'
+        await interaction.response.edit_message(embed=self.embed)
+
+
 class UserCog(commands.Cog, name='Users'):
 
     def __init__(self, bot):
@@ -78,6 +117,58 @@ class UserCog(commands.Cog, name='Users'):
                            f"{player_stats[2]} | "
                            f"({player_stats[3]}/{player_stats[4]})")
 
+    @commands.command(name='user', help='Prints a detailed page of user info')
+    async def __User(self, ctx: commands.Context, user_connect_code: Union[discord.Member, str] = None):
+        logger.debug(f'__User: {ctx.author}: {user_connect_code}')
+
+        if type(user_connect_code) == str:
+            user_connect_code = user_connect_code.lower()
+        with do.create_con(do.db_path) as conn:
+
+            if not user_connect_code or type(user_connect_code) == discord.Member:
+                user = do.get_user_by_uid(conn, ctx.author.id if not user_connect_code else user_connect_code.id)
+                if not user:
+                    logger.debug(f'User not found: {ctx.author.id} | {user_connect_code}')
+                    await ctx.send("Not registered please use the \"$reg\" command to register.")
+                    return
+                user_connect_code = user[2]
+
+            if not sr.is_valid_connect_code(user_connect_code):
+                logger.debug(f'Invalid connect code: {user_connect_code}')
+                await ctx.send('Invalid connect code.')
+                return
+
+            user_info = do.get_user_by_connect_code(conn, user_connect_code)
+
+        player_stats_extended = sr.get_player_ranked_data_extra(user_info)
+        logger.debug(f'player_stats_extended: {player_stats_extended}')
+        if not player_stats_extended:
+            logger.debug(f'Issue getting player stats')
+            await ctx.send(f'Issue getting player stats')
+            return
+
+        with do.create_con(do.db_path) as conn:
+            player_local_stats = do.get_user_stats_by_date(conn, player_stats_extended[0], do.get_latest_date(conn))
+            logger.debug(f'player_local_stats: {player_local_stats}')
+
+        if not player_local_stats:
+            logger.debug(f'Issue getting player local stats')
+            await ctx.send(f'Issue getting player local stats')
+            return
+
+        user_embed = discord.Embed(title=f'{player_local_stats[3]}. {player_local_stats[1]} [{player_local_stats[2]}]',
+                                   url=f'{sr.slippi_url_prefix}{sr.connect_code_to_html(player_local_stats[2])}')
+        user_embed.set_thumbnail(url=player_stats_extended[7])
+        user_embed.add_field(name='Elo', value=player_stats_extended[4])
+        user_embed.add_field(name='Rank', value=player_stats_extended[3])
+        user_embed.add_field(name='\u200b',value='\u200b')
+        user_embed.add_field(name='Wins', value=player_stats_extended[5])
+        user_embed.add_field(name='Loses', value=player_stats_extended[6])
+        winrate = (player_stats_extended[5] / (player_stats_extended[5]+player_stats_extended[6]))*100
+        user_embed.add_field(name='Winrate', value=f'{winrate:.2f}%')
+
+        await ctx.send(embed=user_embed)
+
     @commands.command(name='reg', help='Registers a user for the bot')
     async def __regUser(self, ctx: commands.Context, name, user_connect_code):
 
@@ -116,6 +207,35 @@ class UserCog(commands.Cog, name='Users'):
             await ctx.send('Unable to update info')
 
     @commands.command(name='leaderboard', help='Prints a pagified leaderboard')
+    async def __lb2(self, ctx: commands.Context):
+        logger.debug(f'lb2: {ctx.author}')
+
+        with do.create_con(do.db_path) as conn:
+            leaderboard = sd.generate_leaderboard_text(conn)
+            latest_date = do.get_latest_date(conn)
+
+        if isinstance(leaderboard, sd.ExitCode) or not latest_date:
+            await ctx.send('Error getting leaderboard data, please try again later')
+            return
+
+        logger.debug(f'{latest_date} | {leaderboard}')
+
+        string_date = 'Failed to get date.'
+        if latest_date:
+            string_date = latest_date.astimezone(tz=ZoneInfo('America/Detroit')).strftime('%Y-%m-%d %H:%M:%S')
+
+        pages = math.ceil(len(leaderboard) / 10)
+
+        inital_description = "".join([x for x in leaderboard[0:10]])
+
+        lb_embed = discord.Embed(title='Leaderboard',
+                                 description=f'```{inital_description}```', colour=discord.Colour.green())
+        lb_embed.set_thumbnail(url='https://avatars.githubusercontent.com/u/45867030?s=200&v=4')
+        lb_view = LeaderboardView(lb_embed, leaderboard, string_date, pages, 0)
+        await ctx.send(view=lb_view, embed=lb_embed)
+
+'''
+    @commands.command(name='leaderboard', help='Prints a pagified leaderboard') 
     async def __getLeaderboard(self, ctx: commands.Context):
         logger.debug(f'getLeaderboard: {ctx.author.name}')
         with do.create_con(do.db_path) as conn:
@@ -211,6 +331,7 @@ class UserCog(commands.Cog, name='Users'):
                 cached_msg = discord.utils.get(self.bot.cached_messages, id=message.id)
                 for reactions in cached_msg.reactions:
                     await reactions.remove(self.bot.user)
+'''
 
 
 async def setup(bot: commands.Bot):
