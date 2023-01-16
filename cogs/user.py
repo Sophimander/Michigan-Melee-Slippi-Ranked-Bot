@@ -31,7 +31,7 @@ def has_database_permission():
 class LeaderboardView(discord.ui.View):
 
     def __init__(self, embed: discord.Embed, leaderboard: list[str], date:str, pages: int, cur_page: int):
-        super().__init__()
+        super().__init__(timeout=180)
         self.embed = embed
         self.leaderboard = leaderboard
         self.date = date
@@ -231,6 +231,7 @@ class UserCog(commands.Cog, name='Users'):
         lb_embed = discord.Embed(title='Leaderboard',
                                  description=f'```{inital_description}```', colour=discord.Colour.green())
         lb_embed.set_thumbnail(url='https://avatars.githubusercontent.com/u/45867030?s=200&v=4')
+        lb_embed.set_footer(text=string_date)
         lb_view = LeaderboardView(lb_embed, leaderboard, string_date, pages, 0)
         await ctx.send(view=lb_view, embed=lb_embed)
 
