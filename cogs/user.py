@@ -85,6 +85,19 @@ class UserCog(commands.Cog, name='Users'):
             logger.debug(f'database_refresh: {results}')
         return results
 
+    @commands.command(name='edituser', help='Edits a user manually (Soph only)')
+    @has_database_permission()
+    async def __editUser(self, ctx: commands.Context, uid_target: int, uid_new: int, name: str, connect_code: str):
+        logger.debug(f'editUser: {uid_target}, {uid_new}, {name}, {connect_code}')
+        with do.create_con(do.db_path) as conn:
+            if do.update_user_name(conn, uid_target, name):
+                logger.debug(f'editUser: name updated successfully')
+                if do.update_user_connect_code(conn, uid_target, connect_code):
+                    logger.debug(f'editUser: connect_code updated successfully')
+                    if do.update_user_uid(conn, uid_target, uid_new):
+                        logger.debug(f'editUser: uid updated successfully')
+                        await ctx.send('User info updated')
+
     @commands.command(name='stats', help='Prints a users slippi ranked stats in chat')
     async def __getStats(self, ctx: commands.Context, user_connect_code: Union[discord.Member, str] = None):
         logger.debug(f'getStats: {ctx.author.name}: {user_connect_code}')
@@ -173,6 +186,7 @@ class UserCog(commands.Cog, name='Users'):
     async def __regUser(self, ctx: commands.Context, name, user_connect_code):
 
         logger.debug(f'regUser: {ctx.author.name}, {name}, {user_connect_code}')
+        connect_code_uid = 0
         with do.create_con(do.db_path) as conn:
 
             user_connect_code = user_connect_code.lower()
@@ -187,7 +201,6 @@ class UserCog(commands.Cog, name='Users'):
                 if not connect_code_uid:
                     do.update_user_connect_code(conn, ctx.author.id, user_connect_code)
                     await ctx.send('Updated player info.')
-                    conn.close()
                     return
 
                 # Check that connect_code uid matches author id
@@ -203,6 +216,9 @@ class UserCog(commands.Cog, name='Users'):
                 else:
                     await ctx.send('Someone else already has that connect code')
                     return
+            elif results == sd.ExitCode.USER_CREATED_SUCCESSFULLY:
+                await ctx.send('Thank you for registering')
+                return
 
             await ctx.send('Unable to update info')
 

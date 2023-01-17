@@ -157,6 +157,22 @@ def update_user_name(connection: sqlite3.Connection, uid: int, name: str) -> boo
         return False
 
 
+def update_user_uid(connection: sqlite3.Connection, uid: int, uid_new: int) -> bool:
+    logger.debug(f'update_user_name: {uid}, {uid_new}')
+    query = "UPDATE users SET uid = ? WHERE uid = ?"
+    query_param = [uid_new, uid]
+
+    try:
+        cur = connection.cursor()
+        cur.execute(query, query_param)
+        connection.commit()
+
+        return True
+    except Error as e:
+        logger.error(e)
+        return False
+
+
 def get_all_users(connection: sqlite3.Connection):
     logger.debug(f'get_all_users')
     query = "SELECT * FROM users"
