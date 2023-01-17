@@ -158,8 +158,72 @@ def update_user_name(connection: sqlite3.Connection, uid: int, name: str) -> boo
 
 
 def update_user_uid(connection: sqlite3.Connection, uid: int, uid_new: int) -> bool:
-    logger.debug(f'update_user_name: {uid}, {uid_new}')
+    logger.debug(f'update_user_uid: {uid}, {uid_new}')
     query = "UPDATE users SET uid = ? WHERE uid = ?"
+    query_param = [uid_new, uid]
+
+    try:
+        cur = connection.cursor()
+        cur.execute(query, query_param)
+        connection.commit()
+
+        return True
+    except Error as e:
+        logger.error(e)
+        return False
+
+
+def update_elo_uid(connection: sqlite3.Connection, uid: int, uid_new: int) -> bool:
+    logger.debug(f'update_elo_uid: {uid}, {uid_new}')
+    query = "UPDATE elo SET uid = ? WHERE uid = ?"
+    query_param = [uid_new, uid]
+
+    try:
+        cur = connection.cursor()
+        cur.execute(query, query_param)
+        connection.commit()
+
+        return True
+    except Error as e:
+        logger.error(e)
+        return False
+
+
+def update_rank_uid(connection: sqlite3.Connection, uid: int, uid_new: int) -> bool:
+    logger.debug(f'update_rank_uid: {uid}, {uid_new}')
+    query = "UPDATE rank SET uid = ? WHERE uid = ?"
+    query_param = [uid_new, uid]
+
+    try:
+        cur = connection.cursor()
+        cur.execute(query, query_param)
+        connection.commit()
+
+        return True
+    except Error as e:
+        logger.error(e)
+        return False
+
+
+def update_win_loss_uid(connection: sqlite3.Connection, uid: int, uid_new: int) -> bool:
+    logger.debug(f'update_win_loss_uid: {uid}, {uid_new}')
+    query = "UPDATE win_loss SET uid = ? WHERE uid = ?"
+    query_param = [uid_new, uid]
+
+    try:
+        cur = connection.cursor()
+        cur.execute(query, query_param)
+        connection.commit()
+
+        return True
+    except Error as e:
+        logger.error(e)
+        return False
+
+
+def update_leaderboard_uid(connection: sqlite3.Connection, uid: int, uid_new: int) -> bool:
+    logger.debug(f'update_leaderboard_uid: {uid}, {uid_new}')
+    query = "UPDATE leaderboard SET uid = ? WHERE uid = ?"
     query_param = [uid_new, uid]
 
     try:

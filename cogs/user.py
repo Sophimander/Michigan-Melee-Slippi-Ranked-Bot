@@ -96,7 +96,15 @@ class UserCog(commands.Cog, name='Users'):
                     logger.debug(f'editUser: connect_code updated successfully')
                     if do.update_user_uid(conn, uid_target, uid_new):
                         logger.debug(f'editUser: uid updated successfully')
-                        await ctx.send('User info updated')
+                        if do.update_elo_uid(conn, uid_target, uid_new):
+                            logger.debug('editUser: elo updated successfully')
+                            if do.update_rank_uid(conn, uid_target, uid_new):
+                                logger.debug('editUser: rank updated successfully')
+                                if do.update_win_loss_uid(conn, uid_target, uid_new):
+                                    logger.debug('editUser: win_loss updated successfully')
+                                    if do.update_leaderboard_uid(conn, uid_target, uid_new):
+                                        logger.debug('editUser: leaderboard updated successfully')
+                                        await ctx.send('User info updated')
 
     @commands.command(name='stats', help='Prints a users slippi ranked stats in chat')
     async def __getStats(self, ctx: commands.Context, user_connect_code: Union[discord.Member, str] = None):
