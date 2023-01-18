@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import slippi.slippi_ranked as sr
 import slippi.slippi_data as sd
 import database.database_operations as do
+from users.users import *
 
 import logging
 
@@ -47,7 +48,7 @@ class LeaderboardView(discord.ui.View):
 
         page_start = self.cur_page * 10
         page_end = page_start + 10
-        embed_text = ''.join([x for x in self.leaderboard[page_start:page_end]])
+        embed_text = '\n'.join([x for x in self.leaderboard[page_start:page_end]])
 
         self.embed.description = f'```{embed_text}```'
         await interaction.response.edit_message(embed=self.embed)
@@ -61,7 +62,7 @@ class LeaderboardView(discord.ui.View):
 
         page_start = self.cur_page * 10
         page_end = page_start + 10
-        embed_text = ''.join([x for x in self.leaderboard[page_start:page_end]])
+        embed_text = '\n'.join([x for x in self.leaderboard[page_start:page_end]])
 
         self.embed.description = f'```{embed_text}```'
         await interaction.response.edit_message(embed=self.embed)
@@ -142,50 +143,42 @@ class UserCog(commands.Cog, name='Users'):
     async def __User(self, ctx: commands.Context, user_connect_code: Union[discord.Member, str] = None):
         logger.debug(f'__User: {ctx.author}: {user_connect_code}')
 
-        if type(user_connect_code) == str:
+        uid = 0
+
+        if isinstance(user_connect_code, str):
             user_connect_code = user_connect_code.lower()
-        with do.create_con(do.db_path) as conn:
 
-            if not user_connect_code or type(user_connect_code) == discord.Member:
-                user = do.get_user_by_uid(conn, ctx.author.id if not user_connect_code else user_connect_code.id)
-                if not user:
-                    logger.debug(f'User not found: {ctx.author.id} | {user_connect_code}')
-                    await ctx.send("Not registered please use the \"$reg\" command to register.")
-                    return
-                user_connect_code = user[2]
+        if isinstance(user_connect_code, discord.Member):
+            uid = user_connect_code.id
 
-            if not sr.is_valid_connect_code(user_connect_code):
-                logger.debug(f'Invalid connect code: {user_connect_code}')
-                await ctx.send('Invalid connect code.')
-                return
+        if user_connect_code is None:
+            uid = ctx.author.id
 
-            user_info = do.get_user_by_connect_code(conn, user_connect_code)
+        user = get_user_local_cc(user_connect_code)\
+            if isinstance(user_connect_code, str) else get_user_local_uid(uid)
 
-        player_stats_extended = sr.get_player_ranked_data_extra(user_info)
-        logger.debug(f'player_stats_extended: {player_stats_extended}')
-        if not player_stats_extended:
-            logger.debug(f'Issue getting player stats')
-            await ctx.send(f'Issue getting player stats')
+        if user == sd.ExitCode.FAILED_TO_GET_PLAYER:
+            logger.debug(f'User not found: {ctx.author.id} | {user_connect_code}')
+            await ctx.send('Not registered please use the \"$reg\" command to register.')
             return
 
-        with do.create_con(do.db_path) as conn:
-            player_local_stats = do.get_user_stats_by_date(conn, player_stats_extended[0], do.get_latest_date(conn))
-            logger.debug(f'player_local_stats: {player_local_stats}')
+        if not user.assign_data_local() == sd.ExitCode.USER_ASSIGNED_SUCCESSFULLY:
+            logger.debug(f'Unable to assign user local: {user}')
 
-        if not player_local_stats:
-            logger.debug(f'Issue getting player local stats')
-            await ctx.send(f'Issue getting player local stats')
+        if not user.assign_slippi_data() == sd.ExitCode.USER_ASSIGNED_SUCCESSFULLY:
+            logger.debug(f'Unable to assign user: {user}')
+            await ctx.send('Was unable to get stats, try again later.')
             return
 
-        user_embed = discord.Embed(title=f'{player_local_stats[3]}. {player_local_stats[1]} [{player_local_stats[2]}]',
-                                   url=f'{sr.slippi_url_prefix}{sr.connect_code_to_html(player_local_stats[2])}')
-        user_embed.set_thumbnail(url=player_stats_extended[7])
-        user_embed.add_field(name='Elo', value=player_stats_extended[4])
-        user_embed.add_field(name='Rank', value=player_stats_extended[3])
-        user_embed.add_field(name='\u200b',value='\u200b')
-        user_embed.add_field(name='Wins', value=player_stats_extended[5])
-        user_embed.add_field(name='Loses', value=player_stats_extended[6])
-        winrate = (player_stats_extended[5] / (player_stats_extended[5]+player_stats_extended[6]))*100
+        user_embed = discord.Embed(title=f'{user.position}. {user.name} [{user.connect_code}]',
+                                   url=f'{sr.slippi_url_prefix}{sr.connect_code_to_html(user.connect_code)}')
+        user_embed.set_thumbnail(url=user.characters[0])
+        user_embed.add_field(name='Elo', value=user.elo)
+        user_embed.add_field(name='Rank', value=user.rank)
+        user_embed.add_field(name='\u200b', value='\u200b')
+        user_embed.add_field(name='Wins', value=user.wins)
+        user_embed.add_field(name='Loses', value=user.losses)
+        winrate = (user.wins / (user.wins+user.losses))*100
         user_embed.add_field(name='Winrate', value=f'{winrate:.2f}%')
 
         await ctx.send(embed=user_embed)
@@ -194,6 +187,11 @@ class UserCog(commands.Cog, name='Users'):
     async def __regUser(self, ctx: commands.Context, name, user_connect_code):
 
         logger.debug(f'regUser: {ctx.author.name}, {name}, {user_connect_code}')
+
+        if len(name) > 12:
+            await ctx.send(f'Your name must be 12 characters or less. Your name was {len(name)} characters long')
+            return
+
         connect_code_uid = 0
         with do.create_con(do.db_path) as conn:
 
@@ -250,7 +248,7 @@ class UserCog(commands.Cog, name='Users'):
 
         pages = math.ceil(len(leaderboard) / 10)
 
-        inital_description = "".join([x for x in leaderboard[0:10]])
+        inital_description = '\n'.join([x for x in leaderboard[0:10]])
 
         lb_embed = discord.Embed(title='Leaderboard',
                                  description=f'```{inital_description}```', colour=discord.Colour.green())
@@ -258,105 +256,6 @@ class UserCog(commands.Cog, name='Users'):
         lb_embed.set_footer(text=string_date)
         lb_view = LeaderboardView(lb_embed, leaderboard, string_date, pages, 0)
         await ctx.send(view=lb_view, embed=lb_embed)
-
-'''
-    @commands.command(name='leaderboard', help='Prints a pagified leaderboard') 
-    async def __getLeaderboard(self, ctx: commands.Context):
-        logger.debug(f'getLeaderboard: {ctx.author.name}')
-        with do.create_con(do.db_path) as conn:
-            leaderboard = sd.generate_leaderboard_text(conn)
-            latest_date = do.get_latest_date(conn)
-
-        if isinstance(leaderboard, sd.ExitCode) or not latest_date:
-            await ctx.send('Error getting leaderboard data, please try again later')
-            return
-
-        logger.debug(f'{latest_date} | {leaderboard}')
-
-        string_date = 'Failed to get date.'
-        if latest_date:
-            string_date = latest_date.astimezone(tz=ZoneInfo('America/Detroit')).strftime('%Y-%m-%d %H:%M:%S')
-
-        # Set pages to amount of match_list/10 in an even amount, cur_page to last page, and active to true
-        text = ''
-        pages = math.ceil(len(leaderboard) / 10)
-        cur_page = 0
-        # Used to loop waiting for a react
-        active = True
-
-        # Generate page from match_list
-        for i in range(cur_page * 10, (cur_page * 10) + 10):
-            if i < len(leaderboard):
-                text += leaderboard[i]  # text += str(match_list[i])
-
-        # If pages is greater than one, add a page counter, if not set active to False
-        if pages > 1:
-            text += f'Page {cur_page + 1} of {pages}\t{string_date}\n'
-        else:
-            active = False
-
-        # Create message with return of du.code_message
-        message = await ctx.send(f"```{text}```")
-
-        # If pages greater than one, add reaction controls
-        if pages > 1:
-            await message.add_reaction('\U00002B05')  # ⬅️
-            await message.add_reaction('\U000027A1')  # ➡️
-
-        # Method to check if react is the correction with the correct user
-        def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) in ['\U00002B05', '\U000027A1']
-
-        # While loop
-        while active:
-            try:
-                # page set to start of codeblock
-                page = '```\n'
-                # wait till we get a reaction, fill reaction, user with output of 'reaction_add'
-                reaction, user = await self.bot.wait_for('reaction_add', timeout=60, check=check)
-                # If reaction is left and cur_page is greater than 0
-                if str(reaction.emoji) == '\U00002B05' and cur_page > 0:  # ⬅️️
-                    # Set current page to one less than current
-                    cur_page -= 1
-
-                    # For range of pages for current list append match_list to page
-                    for i in range(cur_page * 10, cur_page * 10 + 10):
-                        page += leaderboard[i]  # match_list[i]
-
-                    # Add page counter and edit message with page
-                    page += f'Page {cur_page + 1} of {pages}\t{string_date}\n```'
-                    await message.edit(content=page)
-
-                    # Remove users reaction
-                    await message.remove_reaction(reaction, user)
-
-                # If reaction is right and cur_page is less than pages-1
-                elif str(reaction.emoji) == '\U000027A1' and cur_page < pages - 1:  # ➡️
-                    # Set current page to one more than current
-                    cur_page += 1
-
-                    # For range of pages for current list append match_list to page
-                    for i in range(cur_page * 10, cur_page * 10 + 10):
-                        if i < len(leaderboard):
-                            page += leaderboard[i]  # match_list[i]
-
-                    # Add page counter and edit message with page
-                    page += f'Page {cur_page + 1} of {pages}\t{string_date}\n```'
-                    await message.edit(content=page)
-
-                    # Remove users reaction
-                    await message.remove_reaction(reaction, user)
-                else:
-                    # Remove reaction if it's anything else
-                    await message.remove_reaction(reaction, user)
-            except asyncio.TimeoutError:
-                # When 'reaction_add' throws exception, set active to False to end loop
-                active = False
-                # Get cached message to remove reactions
-                cached_msg = discord.utils.get(self.bot.cached_messages, id=message.id)
-                for reactions in cached_msg.reactions:
-                    await reactions.remove(self.bot.user)
-'''
 
 
 async def setup(bot: commands.Bot):

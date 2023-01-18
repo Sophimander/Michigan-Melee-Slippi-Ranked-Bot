@@ -17,10 +17,16 @@ class ExitCode(Enum):
     USER_ALREADY_EXISTS = 3
     USER_CREATED_SUCCESSFULLY = 4
     USER_CREATION_FAILED = 5
-    FAILED_TO_GET_ALL_PLAYERS = 6
-    FAILED_TO_CREATE_DATE = 7
-    FAILED_TO_GET_DATE = 8
-    FAILED_TO_GET_LEADERBOARD = 9
+    FAILED_TO_GET_PLAYER = 6
+    FAILED_TO_GET_ALL_PLAYERS = 7
+    FAILED_TO_CREATE_DATE = 8
+    FAILED_TO_GET_DATE = 9
+    FAILED_TO_GET_LEADERBOARD = 10
+    USER_ASSIGNED_SUCCESSFULLY = 11
+
+
+def generate_whitespace(n):
+    return " " * n
 
 
 def get_all_users_ranked_data(conn: sqlite3.Connection):
@@ -56,7 +62,13 @@ def generate_leaderboard_text(conn: sqlite3.Connection):
     leaderboard_text = []
     for entry in leaderboard_data:
         logger.debug(f'entry: {entry}')
-        leaderboard_text.append(f"{entry[2]}. {entry[0]} | {entry[3]} ({entry[4]}/{entry[5]}) {entry[6]}\n")
+        base_whitespace = 13
+        whitespace_amount_front = 2 if entry[2] <= 9 else 1
+        whitespace_amount = (base_whitespace - len(entry[0]))
+        leaderboard_text.append(f"{entry[2]}."
+                                f"{generate_whitespace(whitespace_amount_front)}{entry[0]}"
+                                f"{generate_whitespace(whitespace_amount)}"
+                                f"| {entry[3]} ({entry[4]}/{entry[5]}) {entry[6]}")
 
     return leaderboard_text
 

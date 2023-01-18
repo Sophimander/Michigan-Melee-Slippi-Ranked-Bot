@@ -367,6 +367,11 @@ def get_user_by_connect_code(connection: sqlite3.Connection, connect_code: str):
         return 0
 
 
+def get_user_data_full(connection: sqlite3.Connection, uid: int):
+    logger.debug(f'get_user_by_connect_code: {uid}')
+    return get_user_stats_by_date(connection, uid, get_latest_date(connection))
+
+
 def is_connect_code_present(connection: sqlite3.Connection, connect_code: str) -> bool:
     logger.debug(f'is_connect_code_present: {connect_code}')
     query = "SELECT * FROM users WHERE connect_code=?"
