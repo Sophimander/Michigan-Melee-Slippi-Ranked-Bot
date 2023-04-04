@@ -26,7 +26,7 @@ extensions_list = ['user', 'info']
 
 slippi_url_prefix = "https://slippi.gg/user/"
 
-bot = commands.Bot(command_prefix='$', intents=discord.Intents.all())
+bot = commands.Bot(command_prefix=os.environ.get('DISCORD_COMMAND_PREFIX'), intents=discord.Intents.all())
 
 
 @bot.event

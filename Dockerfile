@@ -26,12 +26,15 @@ WORKDIR /michigan_melee_bot/Michigan-Melee-Slippi-Ranked-Bot
 # Install any dependencies required by the repository
 RUN pip install -r requirements.txt
 
-# Create empty config file
-RUN touch ranked.ini
-RUN echo "[DEFAULT]\nUsername = slippi_email\nPassword = slippi_password\nToken = bot_token_here\nFull_database = /michigan_melee_bot/Michigan-Melee-Slippi-Ranked-Bot/database.db\nfirst_run = 0" > ranked.ini
+# Set environment variables
+ENV DISCORD_TOKEN=<YOUR_DISCORD_TOKEN>
+ENV SLIPPI_USERNAME=<YOUR_SLIPPI_USERNAME>
+ENV SLIPPI_PASSWORD=<YOUR_SLIPPI_PASSWORD>
+ENV FULL_DATABASE=/michigan_melee_bot/Michigan-Melee-Slippi-Ranked-Bot/database.db
+ENV DISCORD_COMMAND_PREFIX=$
 
 # Make script executable
-RUN chmod +x /michigan_melee_bot/Michigan-Melee-Slippi-Ranked-Bot/create_snapshot.sh
+RUN chmod +x create_snapshot.sh
 
 # Create cron job to run create_snapshot.py every 2 hours
 RUN echo "SHELL=/bin/bash\n0 */2 * * * /michigan_melee_bot/Michigan-Melee-Slippi-Ranked-Bot/create_snapshot.sh >> /var/log/cron.log 2>&1" >> mycron
