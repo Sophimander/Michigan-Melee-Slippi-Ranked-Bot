@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Union
 
 import database.database_operations as do
-import slippi.slippi_ranked as sr
+import slippi.slippi_api as sa
 import slippi.slippi_data as sd
 
 import logging
@@ -70,11 +70,11 @@ class User:
             self.connect_code = connect_code
 
         # Validate connect_code
-        if not sr.is_valid_connect_code(self.connect_code):
+        if not sa.is_valid_connect_code(self.connect_code):
             logger.debug(f'Invalid connect code: {self.connect_code}')
             return sd.ExitCode.INVALID_CONNECT_CODE
 
-        slippi_stats = sr.get_player_ranked_data_extra([self.uid, self.name, self.connect_code])
+        slippi_stats = sa.get_player_ranked_data_extra([self.uid, self.name, self.connect_code])
         if not slippi_stats:
             logger.debug(f'Unable to pull stats from slippi.gg')
             return sd.ExitCode.FAILED_TO_GET_PLAYER

@@ -32,6 +32,7 @@ ENV SLIPPI_USERNAME=<YOUR_SLIPPI_USERNAME>
 ENV SLIPPI_PASSWORD=<YOUR_SLIPPI_PASSWORD>
 ENV FULL_DATABASE=/michigan_melee_bot/Michigan-Melee-Slippi-Ranked-Bot/database.db
 ENV DISCORD_COMMAND_PREFIX=$
+ENV PYTHONUNBUFFERED=1
 
 # Make script executable
 RUN chmod +x create_snapshot.sh
@@ -42,4 +43,4 @@ RUN crontab mycron
 RUN touch /var/log/cron.log
 
 # Set the command to start the bot and cron daemon
-CMD service cron start && python main.py
+CMD service cron start && python -u main.py

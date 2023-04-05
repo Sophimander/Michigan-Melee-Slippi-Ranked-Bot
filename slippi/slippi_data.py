@@ -1,6 +1,6 @@
 import datetime
 
-import slippi.slippi_ranked as sr
+import slippi.slippi_api as sa
 import sqlite3
 import database.database_operations as do
 
@@ -33,15 +33,16 @@ def get_all_users_ranked_data(conn: sqlite3.Connection):
     logger.debug(f'get_all_users_ranked_data')
     ranked_data = []
     users = do.get_all_users(conn)
-
+    print(users)
     if not users:
         logger.error(f'Unable to get players')
         return ExitCode.FAILED_TO_GET_ALL_PLAYERS
 
     for individual in users:
-        user_stats = sr.get_player_ranked_data(individual)
+        logger.debug(f'individual: {individual}')
+        user_stats = sa.get_player_ranked_data(individual)
         logger.debug(f'{individual}: {user_stats}')
-        if user_stats is not False:
+        if user_stats:
             ranked_data.append(user_stats)
 
     return ranked_data
@@ -68,7 +69,7 @@ def generate_leaderboard_text(conn: sqlite3.Connection):
         leaderboard_text.append(f"{entry[2]}."
                                 f"{generate_whitespace(whitespace_amount_front)}{entry[0]}"
                                 f"{generate_whitespace(whitespace_amount)}"
-                                f"| {entry[3]} ({entry[4]}/{entry[5]}) {entry[6]}")
+                                f"| {format(entry[3], '.1f')} ({entry[4]}/{entry[5]}) {entry[6]}")
 
     return leaderboard_text
 
@@ -92,7 +93,7 @@ def write_snapshot(conn: sqlite3.Connection):
 
 
 def write_leaderboard_position(conn: sqlite3.Connection, ranked_data, date: datetime.datetime):
-    ranked_data.sort(reverse=True, key=sr.elo_sort)
+    ranked_data.sort(reverse=True, key=sa.elo_sort)
     increment = 0
     for user in ranked_data:
         increment += 1
@@ -101,6 +102,7 @@ def write_leaderboard_position(conn: sqlite3.Connection, ranked_data, date: date
 
 def write_rank_data(conn: sqlite3.Connection, ranked_data, date: datetime.datetime):
     for user in ranked_data:
+        logger.debug(f'user: {user}')
         do.create_rank(conn, user[0], user[3], date)
 
 
@@ -116,7 +118,7 @@ def write_win_loss_data(conn: sqlite3.Connection, ranked_data, date: datetime.da
 
 def create_user_entry(conn: sqlite3.Connection, uid: int, name: str, connect_code: str) -> ExitCode:
     logger.debug(f'create_user_entry: {uid}, {name}, {connect_code}')
-    if not sr.is_valid_connect_code(connect_code.lower()):
+    if not sa.is_valid_connect_code(connect_code.lower()):
         return ExitCode.INVALID_CONNECT_CODE
 
     if do.is_connect_code_present(conn, connect_code.lower()):

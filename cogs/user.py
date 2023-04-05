@@ -8,7 +8,7 @@ import math
 import asyncio
 from zoneinfo import ZoneInfo
 
-import slippi.slippi_ranked as sr
+import slippi.slippi_api as sa
 import slippi.slippi_data as sd
 import database.database_operations as do
 from users.users import *
@@ -123,12 +123,12 @@ class UserCog(commands.Cog, name='Users'):
                     return
                 user_connect_code = user[2]
 
-            if not sr.is_valid_connect_code(user_connect_code):
+            if not sa.is_valid_connect_code(user_connect_code):
                 logger.debug(f'Invalid connect code: {user_connect_code}')
                 await ctx.send('Invalid connect code.')
                 return
 
-            player_stats = sr.get_player_ranked_data_fast(user_connect_code)
+            player_stats = sa.get_player_ranked_data_fast(user_connect_code)
             logger.debug(f'player_stats: {player_stats}')
 
             if not player_stats:
@@ -171,7 +171,7 @@ class UserCog(commands.Cog, name='Users'):
             return
 
         user_embed = discord.Embed(title=f'{user.position}. {user.name} [{user.connect_code}]',
-                                   url=f'{sr.slippi_url_prefix}{sr.connect_code_to_html(user.connect_code)}')
+                                   url=f'{sa.slippi_url_prefix}{sa.connect_code_to_html(user.connect_code)}')
         user_embed.set_thumbnail(url=user.characters[0])
         user_embed.add_field(name='Elo', value=user.elo)
         user_embed.add_field(name='Rank', value=user.rank)

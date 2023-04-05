@@ -22,11 +22,6 @@ def main():
 
     # Get environment variables
     discord_token = os.environ.get('DISCORD_TOKEN')
-    slippi_username = os.environ.get('SLIPPI_USERNAME')
-    slippi_password = os.environ.get('SLIPPI_PASSWORD')
-
-    slippi_ranked.username = slippi_username
-    slippi_ranked.password = slippi_password
 
     # Create database
     with do.create_con('database.db') as conn:
