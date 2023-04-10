@@ -14,7 +14,7 @@ formatter = logging.Formatter('%(asctime)s : %(module)s : %(levelname)s : %(mess
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-database_path = os.environ.get('FULL_DATABASE')
+database_path = 'database.db'
 logger.debug(f'create_snapshot: {database_path}')
 with do.create_con(database_path) as conn:
     slippi.slippi_data.write_snapshot(conn)

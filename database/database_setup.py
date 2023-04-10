@@ -6,8 +6,8 @@ def create_database(conn, c):
             users (
                 uid INTEGER PRIMARY KEY NOT NULL, 
                 name TEXT, 
-                connect_code TEXT UNIQUE)''')
-
+                connect_code TEXT UNIQUE,
+                rating_update_count INTEGER NOT NULL DEFAULT 0)''')
 
     # Create the date table
     c.execute('''CREATE TABLE IF NOT EXISTS 

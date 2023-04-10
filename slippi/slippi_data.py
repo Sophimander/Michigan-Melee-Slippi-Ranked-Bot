@@ -1,6 +1,7 @@
 import datetime
 
 import slippi.slippi_api as sa
+import slippi.ranks as ranks
 import sqlite3
 import database.database_operations as do
 
@@ -40,12 +41,10 @@ def get_all_users_ranked_data(conn: sqlite3.Connection):
 
     for individual in users:
         logger.debug(f'individual: {individual}')
-        user_stats = sa.get_player_ranked_data(individual)
+        user_stats = sa.get_player_data_cleaned(individual[2])
+        ranked_data.append(user_stats)
         logger.debug(f'{individual}: {user_stats}')
-        if user_stats:
-            ranked_data.append(user_stats)
-
-    return ranked_data
+    return [users, ranked_data]
 
 
 def generate_leaderboard_text(conn: sqlite3.Connection):
@@ -86,34 +85,71 @@ def write_snapshot(conn: sqlite3.Connection):
     if ranked_data == ExitCode.FAILED_TO_GET_ALL_PLAYERS:
         return ExitCode.FAILED_TO_GET_ALL_PLAYERS
 
-    write_rank_data(conn, ranked_data, date)
-    write_elo_data(conn, ranked_data, date)
-    write_win_loss_data(conn, ranked_data, date)
-    write_leaderboard_position(conn, ranked_data, date)
+    local_users = ranked_data[0]
+    ranked_data_sep = ranked_data[1]
+
+    write_rank_data(conn, ranked_data_sep, local_users, date)
+    write_elo_data(conn, ranked_data_sep, local_users, date)
+    write_win_loss_data(conn, ranked_data_sep, local_users, date)
+    write_leaderboard_position(conn, ranked_data_sep, local_users, date)
+    write_user_rating_count(conn, ranked_data_sep, local_users)
 
 
-def write_leaderboard_position(conn: sqlite3.Connection, ranked_data, date: datetime.datetime):
-    ranked_data.sort(reverse=True, key=sa.elo_sort)
+def write_leaderboard_position(conn: sqlite3.Connection, ranked_data, local_user, date: datetime.datetime):
+    logger.debug(f'write_leaderboard_position')
+    clean_ranked_data = [item for item in ranked_data if item is not None]
+    clean_ranked_data.sort(reverse=True, key=sa.elo_sort_new)
     increment = 0
-    for user in ranked_data:
+    for user in clean_ranked_data:
+        logger.debug(f'user: {user}, {increment}')
         increment += 1
-        do.create_leaderboard(conn, user[0], increment, date)
+        user_index = ranked_data.index(user)
+        do.create_leaderboard(conn, local_user[user_index][0], increment, date)
 
 
-def write_rank_data(conn: sqlite3.Connection, ranked_data, date: datetime.datetime):
+def write_rank_data(conn: sqlite3.Connection, ranked_data, local_user, date: datetime.datetime):
+    logger.debug(f'write_rank_data')
     for user in ranked_data:
-        logger.debug(f'user: {user}')
-        do.create_rank(conn, user[0], user[3], date)
+        local_index = ranked_data.index(user)
+        logger.debug(f'write_rank_data: {user} {local_user[local_index]}')
+        if user is not None:
+            logger.debug(f'user: {user}')
+            if user.rating_update_count > local_user[local_index][3]:
+                do.create_rank(conn, local_user[local_index][0],
+                               ranks.get_rank(user.rating_ordinal, user.daily_regional_placement), date)
 
 
-def write_elo_data(conn: sqlite3.Connection, ranked_data, date: datetime.datetime):
+def write_elo_data(conn: sqlite3.Connection, ranked_data, local_user, date: datetime.datetime):
+    logger.debug(f'write_elo_data')
     for user in ranked_data:
-        do.create_elo(conn, user[0], date, user[4])
+        local_index = ranked_data.index(user)
+        logger.debug(f'write_elo_data: {user} {local_user[local_index]}')
+        if user is not None:
+            logger.debug(f'user: {user}')
+            if user.rating_update_count > local_user[local_index][3]:
+                do.create_elo(conn, local_user[local_index][0], date, user.rating_ordinal)
 
 
-def write_win_loss_data(conn: sqlite3.Connection, ranked_data, date: datetime.datetime):
+def write_win_loss_data(conn: sqlite3.Connection, ranked_data, local_user, date: datetime.datetime):
+    logger.debug(f'write_win_loss_data')
     for user in ranked_data:
-        do.create_win_loss(conn, user[0], user[5], user[6], date)
+        local_index = ranked_data.index(user)
+        logger.debug(f'write_win_loss_data: {user} {local_user[local_index]}')
+        if user is not None:
+            logger.debug(f'user: {user}')
+            if user.rating_update_count > local_user[local_index][3]:
+                do.create_win_loss(conn, local_user[local_index][0], user.wins, user.losses, date)
+
+
+def write_user_rating_count(conn: sqlite3.Connection, ranked_data, local_user):
+    logger.debug(f'write_user_rating_count')
+    for user in ranked_data:
+        local_index = ranked_data.index(user)
+        logger.debug(f'write_user_rating_count: {user} {local_user[local_index]}')
+        if user is not None:
+            logger.debug(f'user: {user}')
+            if user.rating_update_count > local_user[local_index][3]:
+                do.update_user_rating_count(conn, local_user[local_index][0], user.rating_update_count)
 
 
 def create_user_entry(conn: sqlite3.Connection, uid: int, name: str, connect_code: str) -> ExitCode:

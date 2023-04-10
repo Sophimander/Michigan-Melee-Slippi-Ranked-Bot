@@ -11,43 +11,6 @@ logger = logging.getLogger(f'slippi_bot.{__name__}')
 limiter = RateLimiter(max_calls=1, period=1)
 
 slippi_url_prefix = "https://slippi.gg/user/"
-slippi_character_url = 'https://slippi.gg/images/characters/stock-icon-?-0.png'
-
-SlippiCharacterIcon = {
-    'CAPTAIN_FALCON': 0,
-    'DONKEY_KONG': 1,
-    'FOX': 2,
-    'GAME_AND_WATCH': 3,
-    'KIRBY': 4,
-    'BOWSER': 5,
-    'LINK': 6,
-    'LUIGI': 7,
-    'MARIO': 8,
-    'MARTH': 9,
-    'MEWTWO': 10,
-    'NESS': 11,
-    'PEACH': 12,
-    'PIKACHU': 13,
-    'ICE_CLIMBERS': 14,
-    'JIGGLYPUFF': 15,
-    'SAMUS': 16,
-    'YOSHI': 17,
-    'ZELDA': 18,
-    'SHEIK': 19,
-    'FALCO': 20,
-    'YOUNG_LINK': 21,
-    'DR_MARIO': 22,
-    'ROY': 23,
-    'PICHU': 24,
-    'GANONDORF': 25
-}
-
-
-def get_character_url(character_name: str):
-    character_id = SlippiCharacterIcon.get(character_name, None)
-    if character_id:
-        return slippi_character_url.replace('?', str(character_id))
-    return None
 
 
 def connect_code_to_html(connect_code):
@@ -56,6 +19,10 @@ def connect_code_to_html(connect_code):
 
 def elo_sort(elem):
     return elem[4]
+
+
+def elo_sort_new(elem):
+    return elem.rating_ordinal
 
 
 def is_valid_connect_code(connect_code):
@@ -161,9 +128,9 @@ def get_player_ranked_data_extra(user):
     wins = player_data.wins
     loses = player_data.wins
     if player_data.characters:
-        character_url = get_character_url(player_data.characters[0].character)
+        character_url = player_data.characters[0].get_character_icon_url()
     else:
-        character_url = get_character_url(0)
+        character_url = slippi.data_response.slippi_character_url.replace('?', 0)
     return [uid, name, connect_code, rank_text, elo_rating, wins, loses, character_url]
 
 

@@ -2,20 +2,25 @@ import datetime
 
 import discord
 from discord.ext import commands
-from typing import Union
+from typing import Union, Optional
 
 import math
-import asyncio
 from zoneinfo import ZoneInfo
 
+import database.database_operations as do
 import slippi.slippi_api as sa
 import slippi.slippi_data as sd
-import database.database_operations as do
-from users.users import *
+
+from players import errors, users, local_user
 
 import logging
 
 logger = logging.getLogger(f'slippi_bot.{__name__}')
+
+discordMemberStr = Union[discord.Member, str]
+memberstr_description = 'Connect code or a discord member, if left empty it will use the person who issues the command'
+memberstr_parameter = commands.parameter(default=lambda ctx: ctx.author, description=memberstr_description)
+memberbool_description = 'Boolean (ex. 0, 1, True, False) or a discord member'
 
 
 def has_database_permission():
@@ -26,12 +31,13 @@ def has_database_permission():
         """
 
         return ctx.author.id == 126913881879740416
+
     return commands.check(predicate)
 
 
 class LeaderboardView(discord.ui.View):
 
-    def __init__(self, embed: discord.Embed, leaderboard: list[str], date:str, pages: int, cur_page: int):
+    def __init__(self, embed: discord.Embed, leaderboard: list[str], date: str, pages: int, cur_page: int):
         super().__init__(timeout=180)
         self.embed = embed
         self.leaderboard = leaderboard
@@ -73,14 +79,18 @@ class UserCog(commands.Cog, name='Users'):
     def __init__(self, bot):
         self.bot = bot
 
-    async def cog_command_error(self, ctx: commands.Context,
-                                error: commands.CommandError):
+    async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
         logger.error(f'{error}')
+
+        if isinstance(error.__cause__, errors.UserError):
+            await ctx.send(f'{error.__cause__.message}')
+            return
+
         await ctx.send('An error occurred: {}'.format(str(error)))
 
     @commands.command(name='refresh', help='Creates a ranked stats snapshot (Soph only)')
     @has_database_permission()
-    async def __refreshDatabase(self, ctx: commands.Context):
+    async def __refresh_database(self, ctx: commands.Context):
         with do.create_con(do.db_path) as conn:
             results = sd.write_snapshot(conn)
             logger.debug(f'database_refresh: {results}')
@@ -88,8 +98,8 @@ class UserCog(commands.Cog, name='Users'):
 
     @commands.command(name='edituser', help='Edits a user manually (Soph only)')
     @has_database_permission()
-    async def __editUser(self, ctx: commands.Context, uid_target: int, uid_new: int, name: str, connect_code: str):
-        logger.debug(f'editUser: {uid_target}, {uid_new}, {name}, {connect_code}')
+    async def __edit_user(self, ctx: commands.Context, uid_target: int, uid_new: int, name: str, connect_code: str):
+        logger.debug(f'edit_user: {uid_target}, {uid_new}, {name}, {connect_code}')
         with do.create_con(do.db_path) as conn:
             if do.update_user_name(conn, uid_target, name):
                 logger.debug(f'editUser: name updated successfully')
@@ -108,85 +118,70 @@ class UserCog(commands.Cog, name='Users'):
                                         await ctx.send('User info updated')
 
     @commands.command(name='stats', help='Prints a users slippi ranked stats in chat')
-    async def __getStats(self, ctx: commands.Context, user_connect_code: Union[discord.Member, str] = None):
-        logger.debug(f'getStats: {ctx.author.name}: {user_connect_code}')
-
-        if type(user_connect_code) == str:
-            user_connect_code = user_connect_code.lower()
-        with do.create_con(do.db_path) as conn:
-
-            if not user_connect_code or type(user_connect_code) == discord.Member:
-                user = do.get_user_by_uid(conn, ctx.author.id if not user_connect_code else user_connect_code.id)
-                if not user:
-                    logger.debug(f'User not found: {ctx.author.id} | {user_connect_code}')
-                    await ctx.send("Not registered please use the \"$reg\" command to register.")
-                    return
-                user_connect_code = user[2]
-
-            if not sa.is_valid_connect_code(user_connect_code):
-                logger.debug(f'Invalid connect code: {user_connect_code}')
-                await ctx.send('Invalid connect code.')
-                return
-
-            player_stats = sa.get_player_ranked_data_fast(user_connect_code)
-            logger.debug(f'player_stats: {player_stats}')
-
-            if not player_stats:
-                await ctx.send('Unable to find user.')
-                return
-
-            await ctx.send(f"{player_stats[0]}: {player_stats[1]} | "
-                           f"{player_stats[2]} | "
-                           f"({player_stats[3]}/{player_stats[4]})")
-
-    @commands.command(name='user', help='Prints a detailed page of user info')
-    async def __User(self, ctx: commands.Context, user_connect_code: Union[discord.Member, str] = None):
-        logger.debug(f'__User: {ctx.author}: {user_connect_code}')
+    async def __get_stats(self, ctx: commands.Context, user_info: discordMemberStr = memberstr_parameter):
+        logger.debug(f'get_stats: {ctx.author.name}: {user_info}')
 
         uid = 0
+        cc = ''
 
-        if isinstance(user_connect_code, str):
-            user_connect_code = user_connect_code.lower()
+        if isinstance(user_info, str):
+            cc = user_info.lower()
 
-        if isinstance(user_connect_code, discord.Member):
-            uid = user_connect_code.id
+        if isinstance(user_info, discord.Member):
+            uid = user_info.id
 
-        if user_connect_code is None:
-            uid = ctx.author.id
+        player = local_user.LocalUser(id=uid, connect_code=cc)
+        if isinstance(user_info, discord.Member):
+            player.assign_data_local()
+        player.assign_slippi_data()
 
-        user = get_user_local_cc(user_connect_code)\
-            if isinstance(user_connect_code, str) else get_user_local_uid(uid)
+        logger.debug(f'player: {player}')
 
-        if user == sd.ExitCode.FAILED_TO_GET_PLAYER:
-            logger.debug(f'User not found: {ctx.author.id} | {user_connect_code}')
-            await ctx.send('Not registered please use the \"$reg\" command to register.')
-            return
+        await ctx.send(f"{player.connect_code}: {player.rank} | "
+                       f"{player.elo} | "
+                       f"({player.wins}/{player.losses})")
 
-        if not user.assign_data_local() == sd.ExitCode.USER_ASSIGNED_SUCCESSFULLY:
-            logger.debug(f'Unable to assign user local: {user}')
+    @commands.command(name='user', help='Prints a detailed page of player info')
+    async def __user(self, ctx: commands.Context, user_info: Optional[discordMemberStr] = memberstr_parameter):
+        logger.debug(f'__user: {ctx.author}: {user_info}')
 
-        if not user.assign_slippi_data() == sd.ExitCode.USER_ASSIGNED_SUCCESSFULLY:
-            logger.debug(f'Unable to assign user: {user}')
-            await ctx.send('Was unable to get stats, try again later.')
-            return
+        uid = 0
+        cc = ''
 
-        user_embed = discord.Embed(title=f'{user.position}. {user.name} [{user.connect_code}]',
-                                   url=f'{sa.slippi_url_prefix}{sa.connect_code_to_html(user.connect_code)}')
-        user_embed.set_thumbnail(url=user.characters[0])
-        user_embed.add_field(name='Elo', value=user.elo)
-        user_embed.add_field(name='Rank', value=user.rank)
+        if isinstance(user_info, str):
+            cc = user_info.lower()
+
+        if isinstance(user_info, discord.Member):
+            uid = user_info.id
+
+        player = local_user.get_user_local(uid, cc)
+        try:
+            player.assign_data_local()
+        except Exception as error:
+            if not isinstance(error, errors.FailedToGetLocalUserData):
+                raise error
+
+        player.assign_slippi_data()
+
+        user_embed = discord.Embed(title=f'{player.position}. {player.name} [{player.connect_code}]',
+                                   url=f'{sa.slippi_url_prefix}{sa.connect_code_to_html(player.connect_code)}')
+        if player.characters:
+            user_embed.set_thumbnail(url=player.characters[0].get_character_icon_url())
+        else:
+            user_embed.set_thumbnail(url='https://avatars.githubusercontent.com/u/45867030?s=200&v=4')
+        user_embed.add_field(name='Elo', value=player.elo)
+        user_embed.add_field(name='Rank', value=player.rank)
         user_embed.add_field(name='\u200b', value='\u200b')
-        user_embed.add_field(name='Wins', value=user.wins)
-        user_embed.add_field(name='Loses', value=user.losses)
-        winrate = (user.wins / (user.wins+user.losses))*100
-        user_embed.add_field(name='Winrate', value=f'{winrate:.2f}%')
+        user_embed.add_field(name='Wins', value=player.wins)
+        user_embed.add_field(name='Loses', value=player.losses)
+        win_rate = (player.wins / (player.wins + player.losses)) * 100
+        user_embed.add_field(name='Win rate', value=f'{win_rate:.2f}%')
 
         await ctx.send(embed=user_embed)
 
     @commands.command(name='reg', help='Registers a user for the bot')
-    async def __regUser(self, ctx: commands.Context, name, user_connect_code):
-
-        logger.debug(f'regUser: {ctx.author.name}, {name}, {user_connect_code}')
+    async def __reg_user(self, ctx: commands.Context, name: str, user_connect_code: str):
+        logger.debug(f'reg_user: {ctx.author.name}, {name}, {user_connect_code}')
 
         if len(name) > 12:
             await ctx.send(f'Your name must be 12 characters or less. Your name was {len(name)} characters long')
@@ -229,8 +224,16 @@ class UserCog(commands.Cog, name='Users'):
             await ctx.send('Unable to update info')
 
     @commands.command(name='leaderboard', help='Prints a pagified leaderboard')
-    async def __lb2(self, ctx: commands.Context):
-        logger.debug(f'lb2: {ctx.author}')
+    async def __leaderboard(self, ctx: commands.Context,
+                            focus_me:  bool | discord.Member =
+                            commands.parameter(default=None, description=memberbool_description)):
+        logger.debug(f'leaderboard: {ctx.author}, {focus_me}')
+
+        focus_user = 0
+
+        if focus_me:
+            focus_user = local_user.get_user_local(focus_me.id if isinstance(focus_me, discord.Member) else ctx.author)
+            focus_user.assign_data_local()
 
         with do.create_con(do.db_path) as conn:
             leaderboard = sd.generate_leaderboard_text(conn)
@@ -247,8 +250,17 @@ class UserCog(commands.Cog, name='Users'):
             string_date = latest_date.astimezone(tz=ZoneInfo('America/Detroit')).strftime('%Y-%m-%d %H:%M:%S')
 
         pages = math.ceil(len(leaderboard) / 10)
+        cur_page = 0
 
-        inital_description = '\n'.join([x for x in leaderboard[0:10]])
+        if focus_me:
+            cur_page = math.ceil(focus_user.position / 10)
+            if cur_page:
+                cur_page -= 1
+
+        page_start = cur_page * 10
+        page_end = page_start + 10
+
+        inital_description = '\n'.join([x for x in leaderboard[page_start:page_end]])
 
         lb_embed = discord.Embed(title='Leaderboard',
                                  description=f'```{inital_description}```', colour=discord.Colour.green())

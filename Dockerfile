@@ -28,9 +28,6 @@ RUN pip install -r requirements.txt
 
 # Set environment variables
 ENV DISCORD_TOKEN=<YOUR_DISCORD_TOKEN>
-ENV SLIPPI_USERNAME=<YOUR_SLIPPI_USERNAME>
-ENV SLIPPI_PASSWORD=<YOUR_SLIPPI_PASSWORD>
-ENV FULL_DATABASE=/michigan_melee_bot/Michigan-Melee-Slippi-Ranked-Bot/database.db
 ENV DISCORD_COMMAND_PREFIX=$
 ENV PYTHONUNBUFFERED=1
 

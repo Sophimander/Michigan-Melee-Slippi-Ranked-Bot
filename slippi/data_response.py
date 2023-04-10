@@ -5,11 +5,47 @@ import logging
 logger = logging.getLogger(f'slippi_bot.{__name__}')
 
 
+slippi_character_url = 'https://slippi.gg/images/characters/stock-icon-?-0.png'
+
+
+SlippiCharacterIcon = {
+    'CAPTAIN_FALCON': 1,
+    'DONKEY_KONG': 0,
+    'FOX': 2,
+    'GAME_AND_WATCH': 3,
+    'KIRBY': 4,
+    'BOWSER': 5,
+    'LINK': 6,
+    'LUIGI': 7,
+    'MARIO': 8,
+    'MARTH': 9,
+    'MEWTWO': 10,
+    'NESS': 11,
+    'PEACH': 12,
+    'PIKACHU': 13,
+    'ICE_CLIMBERS': 14,
+    'JIGGLYPUFF': 15,
+    'SAMUS': 16,
+    'YOSHI': 17,
+    'ZELDA': 18,
+    'SHEIK': 19,
+    'FALCO': 20,
+    'YOUNG_LINK': 21,
+    'DR_MARIO': 22,
+    'ROY': 23,
+    'PICHU': 24,
+    'GANONDORF': 25
+}
+
+
 @dataclass
 class SlippiCharacters:
     id: int
     character: str
     game_count: int
+
+    def get_character_icon_url(self):
+        return slippi_character_url.replace('?', str(SlippiCharacterIcon.get(self.character)))
 
 
 @dataclass
