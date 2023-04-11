@@ -32,7 +32,7 @@ def create_user(connection: sqlite3.Connection, name: str, connect_code: str,
                 uid: Union[int, None] = None, rating_update_count: int = 0) -> int:
     logger.debug(f'create_user: {name}, {connect_code}, {uid}, {rating_update_count}')
     query = "INSERT INTO users VALUES (?, ?, ?, ?)"
-    query_param = [uid, name, connect_code.lower()]
+    query_param = [uid, name, connect_code.lower(), rating_update_count]
 
     try:
         cur = connection.cursor()

@@ -1,4 +1,5 @@
 import os
+import logging
 import discord
 from discord.ext import commands
 
@@ -9,6 +10,8 @@ slippi_url_prefix = "https://slippi.gg/user/"
 
 bot = commands.Bot(command_prefix=os.environ.get('DISCORD_COMMAND_PREFIX'), intents=discord.Intents.all())
 
+logger = logging.getLogger(f'slippi_bot.{__name__}')
+
 
 @bot.event
 async def on_ready():
@@ -18,14 +21,14 @@ async def on_ready():
             await bot.load_extension(f'cogs.{extension}')
         except Exception as e:
             exc = '{}: {}'.format(type(e).__name__, e)
-            print('Failed to load extension {}\n{}'.format(extension, exc))
+            logger.error('Failed to load extension {}\n{}'.format(extension, exc))
 
     for cog in bot.cogs:
-        print(cog)
+        logger.info(cog)
 
     # set bot status to online and game it is playing
     await bot.change_presence(status=discord.Status.online,
                               activity=discord.Activity(
                                   type=discord.ActivityType.playing,
                                   name="Slippi"))
-    print('Logged in as:\n{0.user.name}\n{0.user.id}'.format(bot))
+    logger.info('Logged in as: {0.user.name} | {0.user.id}'.format(bot))
