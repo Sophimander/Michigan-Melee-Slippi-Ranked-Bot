@@ -4,7 +4,6 @@ import logging
 
 logger = logging.getLogger(f'slippi_bot.{__name__}')
 
-
 @dataclass
 class Rank:
     lower_bound: float

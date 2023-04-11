@@ -6,12 +6,18 @@ import sys
 
 logger = logging.getLogger('slippi_bot')
 logger.setLevel(logging.DEBUG)
+
+stdout_handler = logging.StreamHandler(sys.stdout)
 file_handler = logging.FileHandler('log.log')
-stream_handler = logging.StreamHandler(sys.stdout)
-stream_handler.setLevel(logging.ERROR)
-logger.addHandler(stream_handler)
-formatter = logging.Formatter('%(asctime)s : %(module)s : %(levelname)s : %(message)s')
+
+stdout_handler.setLevel(logging.DEBUG)
+file_handler.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stdout_handler.setFormatter(formatter)
 file_handler.setFormatter(formatter)
+
+logger.addHandler(stdout_handler)
 logger.addHandler(file_handler)
 
 database_path = 'database.db'

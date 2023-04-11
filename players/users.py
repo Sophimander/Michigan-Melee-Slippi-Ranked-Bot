@@ -8,7 +8,7 @@ import slippi.ranks as ranks
 
 import logging
 
-logger = logging.getLogger(f'slippi_bot.{__name__}')
+logger = logging.getLogger(__name__)
 
 
 @dataclass(kw_only=True)

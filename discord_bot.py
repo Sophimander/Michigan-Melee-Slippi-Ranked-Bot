@@ -1,26 +1,7 @@
 import os
-import selenium.common.exceptions
-import re
 import discord
 from discord.ext import commands
 
-import math
-import asyncio
-
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-
-import slippi.slippi_ranked as sr
-import slippi.slippi_data as sd
-import database.database_operations as do
-
-'''
-chrome_options = Options()
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument('--disable-dev-shm-usage')
-driver = webdriver.Chrome(options=chrome_options)
-'''
 
 extensions_list = ['user', 'info']
 
@@ -31,7 +12,6 @@ bot = commands.Bot(command_prefix=os.environ.get('DISCORD_COMMAND_PREFIX'), inte
 
 @bot.event
 async def on_ready():
-    sr.login()
 
     for extension in extensions_list:
         try:

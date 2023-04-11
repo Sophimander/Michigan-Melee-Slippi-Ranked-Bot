@@ -23,6 +23,12 @@ RUN git clone https://github.com/ConstObject/Michigan-Melee-Slippi-Ranked-Bot.gi
 # Set the working directory to the cloned repository
 WORKDIR /michigan_melee_bot/Michigan-Melee-Slippi-Ranked-Bot
 
+# Copy database if present
+COPY database.db database.db
+
+# Copy backup script if possible
+COPY backup_database.sh backup_database.sh
+
 # Install any dependencies required by the repository
 RUN pip install -r requirements.txt
 

@@ -6,7 +6,7 @@ from sqlite3 import Error
 
 import logging
 
-logger = logging.getLogger(f'slippi_bot: {__name__}')
+logger = logging.getLogger(f'slippi_bot.{__name__}')
 
 db_path = 'database.db'
 
